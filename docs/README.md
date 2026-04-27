@@ -4,6 +4,7 @@ This repository contains the Soroban smart contracts and related resources for t
 
 Contents:
 - Overview
+- [Developer Glossary](glossary.md)
 - Modules and Features
 - Admin Operations
 - Monitoring & Analytics

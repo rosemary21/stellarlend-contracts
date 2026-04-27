@@ -28,3 +28,11 @@ Protocol parameters strictly utilize `checked_add`, `checked_sub`, `checked_mul`
 - **Pause module**: Withdraw is blocked when `pause::is_paused(Withdraw)` is true (this includes global `PauseType::All`), when the legacy `WithdrawDataKey::Paused` flag is set, or when the protocol is in **emergency shutdown** (`blocks_high_risk_ops` and not in **recovery**). In **recovery**, users may still withdraw (and repay) to unwind positions.
 - **Collateral ratio**: Post-withdraw collateral must satisfy the same minimum ratio as borrows, via shared `borrow::validate_collateral_ratio` (150% default, `MIN_COLLATERAL_RATIO_BPS`).
 - **Authorization**: Only the position owner can withdraw; `user.require_auth()` is enforced before state changes.
+
+### Liquidation Boundary and Health Factor Scaling
+The protocol represents the Health Factor using a scalar where `10_000` equates to `1.0`. 
+To ensure determinism and avoid rounding ambiguity, the protocol strictly enforces the `<` threshold for liquidation eligibility. 
+* A position with a Health Factor `<= 9_999` **is eligible** for liquidation.
+* A position with a Health Factor `>= 10_000` **is completely immune** to liquidation. 
+
+There are no edge cases where a `10_000` Health Factor allows for liquidation. All price oracle rounding uses integer truncations designed to safely error on the side of protecting the borrower from false-positive liquidations.

@@ -278,7 +278,7 @@ dependencies = [
 name = "bridge"
 version = "0.0.0"
 dependencies = [
- "soroban-sdk 25.3.1",
+ "soroban-sdk 25.3.0",
  "stellarlend-common",
 ]
 
@@ -314,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.60"
+version = "1.2.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43c5703da9466b66a946814e1adf53ea2c90f10063b86290cc9eb67ce3478a20"
+checksum = "d16d90359e986641506914ba71350897565610e87ce0ad9e6f28569db3dd5c6d"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -540,9 +540,9 @@ dependencies = [
 
 [[package]]
 name = "data-encoding"
-version = "2.10.0"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
+checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
 name = "deadpool"
@@ -1013,7 +1013,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 name = "hello-world"
 version = "0.0.0"
 dependencies = [
- "soroban-sdk 25.3.1",
+ "soroban-sdk 25.3.0",
  "soroban-token-sdk",
  "stellar-contract-utils",
  "stellar-macros",
@@ -2426,9 +2426,9 @@ dependencies = [
 
 [[package]]
 name = "soroban-sdk"
-version = "25.3.1"
+version = "25.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4502f2e018f238a4c5d3212d7d20ea6abcdc6e58babd63b642b693739db30fd1"
+checksum = "5fb27e93f8d3fc3a815d24c60ec11e893c408a36693ec9c823322f954fa096ae"
 dependencies = [
  "arbitrary",
  "bytes-lit",
@@ -2547,11 +2547,11 @@ dependencies = [
 
 [[package]]
 name = "soroban-token-sdk"
-version = "25.3.1"
+version = "25.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8230fe7cf1bf138068cbe5cfa54a76657bed8a9bb6a89a4a229383116d3f067"
+checksum = "7257d888e42da01d031cfc388d4c9c10e4e13388a4e04deabf812fa7d33f0af3"
 dependencies = [
- "soroban-sdk 25.3.1",
+ "soroban-sdk 25.3.0",
 ]
 
 [[package]]
@@ -2677,7 +2677,7 @@ dependencies = [
 name = "stellarlend-amm"
 version = "0.1.0"
 dependencies = [
- "soroban-sdk 25.3.1",
+ "soroban-sdk 25.3.0",
  "soroban-token-sdk",
  "stellarlend-common",
 ]
@@ -2697,6 +2697,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "soroban-sdk 25.3.0",
+ "stellarlend-lending",
  "test-case",
  "thiserror",
  "tokio",
@@ -2711,14 +2713,14 @@ dependencies = [
 name = "stellarlend-common"
 version = "0.1.0"
 dependencies = [
- "soroban-sdk 25.3.1",
+ "soroban-sdk 25.3.0",
 ]
 
 [[package]]
 name = "stellarlend-lending"
 version = "0.1.0"
 dependencies = [
- "soroban-sdk 25.3.1",
+ "soroban-sdk 25.3.0",
  "soroban-token-sdk",
  "stellarlend-common",
 ]

@@ -8,6 +8,13 @@
 //! - View functions do not modify contract or user state.
 //! - Collateral and debt values depend on the oracle; ensure the oracle is correct and trusted.
 //! - Health factor uses the admin-set liquidation threshold consistently.
+//!
+//! ## Serialization Stability
+//! Public getter structs are treated as view schema `v1`.
+//! Soroban `#[contracttype]` structs serialize as XDR maps keyed by field name, and the generated
+//! conversion code sorts those keys lexicographically. Existing getter return structs must keep
+//! their current field names and types stable; any additive or breaking change should ship as a
+//! new versioned getter/type instead of mutating the existing schema in place.
 
 use crate::borrow::{
     get_close_factor_bps, get_liquidation_incentive_bps, get_liquidation_threshold_bps, get_oracle,
@@ -26,10 +33,15 @@ pub const HEALTH_FACTOR_SCALE: i128 = BPS_SCALE;
 /// Sentinel health factor when user has no debt (position is healthy).
 pub const HEALTH_FACTOR_NO_DEBT: i128 = 100_000_000;
 
+/// Current schema version for public getter structs documented in this contract.
+pub const VIEW_SCHEMA_VERSION: u32 = 1;
+
 /// Summary of a user's borrow position for frontends and liquidations.
 ///
 /// All value fields use a common unit (e.g. USD with 8 decimals) when oracle is set.
 /// When oracle is not set, `collateral_value` and `debt_value` are 0 and `health_factor` is 0.
+/// Serialization contract: this struct is exposed as view schema `v1`. Preserve the current field
+/// names and types for `get_user_position`; ship a new versioned getter/type for any schema change.
 #[contracttype]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct UserPositionSummary {

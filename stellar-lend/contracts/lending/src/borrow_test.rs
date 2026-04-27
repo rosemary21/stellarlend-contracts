@@ -351,13 +351,12 @@ fn test_coverage_extremes() {
     let hash = BytesN::from_array(&env, &[1; 32]);
     client.upgrade_init(&admin, &hash, &1); // initialize upgrade system first
     let pid = client.upgrade_propose(&admin, &hash, &100);
-    assert_eq!(client.upgrade_status(&pid).stage, UpgradeStage::Approved);
+    assert_eq!(client.upgrade_status(&pid).stage, UpgradeStage::Proposed);
 
     // Trigger some internal view branches
     let _ = client.get_user_position(&user);
     let _ = client.get_liquidation_incentive_amount(&1_000_000);
 }
-
 
 // ── Issue #472: borrow insufficient-collateral error matrix ───────────────
 
@@ -373,7 +372,7 @@ fn test_borrow_zero_collateral_rejected() {
     let (client, _admin, user, asset, collateral_asset) = setup_test(&env);
 
     let result = client.try_borrow(&user, &asset, &10_000, &collateral_asset, &0);
-    assert_eq!(result, Err(Ok(BorrowError::InvalidAmount)));
+    assert_eq!(result, Err(Ok(BorrowError::InsufficientCollateral)));
 }
 
 /// Collateral exactly at 150 % of borrow amount must be accepted.

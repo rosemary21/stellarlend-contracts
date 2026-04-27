@@ -89,20 +89,7 @@ use soroban_sdk::{contracterror, contractevent, contracttype, token, Address, En
 use crate::constants::{BPS_SCALE, HEALTH_FACTOR_SCALE};
 use crate::pause::{self, PauseType};
 
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum CrossAssetError {
-    InsufficientCollateral = 1,
-    DebtCeilingReached = 2,
-    ProtocolPaused = 3,
-    InvalidAmount = 4,
-    Overflow = 5,
-    Unauthorized = 6,
-    AssetNotSupported = 7,
-    PriceUnavailable = 8,
-    AlreadyInitialized = 9,
-}
+pub use crate::errors::CrossAssetError;
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -620,6 +607,18 @@ fn get_price(_env: &Env, _price_feed: &Address) -> Result<i128, CrossAssetError>
 }
 
 pub fn initialize_admin(env: &Env, admin: Address) {
+    // Guard against re-initialization: once the cross-asset admin is set it
+    // cannot be overwritten through this path. An attacker calling this after
+    // deployment would otherwise be able to seize admin rights over cross-asset
+    // operations (privilege escalation via unguarded init).
+    if env
+        .storage()
+        .persistent()
+        .has(&CrossAssetDataKey::Admin)
+    {
+        panic!("cross-asset admin already initialized");
+    }
+    admin.require_auth();
     env.storage()
         .persistent()
         .set(&CrossAssetDataKey::Admin, &admin);

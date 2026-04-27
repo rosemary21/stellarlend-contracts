@@ -4,6 +4,7 @@
 //! so that a future refactor cannot silently break the bounds.
 
 #[cfg(test)]
+#[allow(clippy::assertions_on_constants)]
 mod tests {
     use crate::constants::*;
 

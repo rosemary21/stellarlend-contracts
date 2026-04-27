@@ -15,9 +15,13 @@
 //!    query the close factor themselves.
 //!
 //! 3. The collateral seized by the liquidator is:
-//!    `collateral_seized = repay_amount * (10_000 + incentive_bps) / 10_000`.
-//!    It is further capped to the borrower's available collateral, preventing a
-//!    protocol-level panic even when the position is deeply insolvent.
+//!    `uncapped = repay_amount * (10_000 + incentive_bps) / 10_000`, then
+//!    **`collateral_seized = min(uncapped, collateral_balance)`** (enforced in
+//!    this module before debiting the borrower). The min-bound prevents
+//!    over-seizure when the incentive-scaled amount would otherwise exceed
+//!    on-chain collateral, e.g. after large oracle-denominated repricing or
+//!    when close-factor and maximum incentive combine to make `uncapped` large
+//!    relative to raw collateral.
 //!
 //! 4. After state changes a `PostLiquidationHealthEvent` is emitted carrying the
 //!    borrower's updated health factor. Off-chain monitors use this to detect
@@ -244,6 +248,26 @@ pub fn liquidate_position(
     collateral_position.amount = collateral_position
         .amount
         .saturating_sub(collateral_to_seize);
+
+    // ── 9b. Bad debt accounting ────────────────────────────────────────────
+    // If collateral_to_seize < repay_amount, the shortfall is bad debt.
+    // Attempt to auto-offset from the insurance fund.
+    if collateral_to_seize < repay_amount {
+        let shortfall = repay_amount - collateral_to_seize;
+        let current_bad_debt = crate::borrow::get_total_bad_debt(env, &debt_asset);
+        let new_bad_debt = current_bad_debt.saturating_add(shortfall);
+
+        let fund_balance = crate::borrow::get_insurance_fund_balance(env, &debt_asset);
+        let (final_bad_debt, final_fund) = if fund_balance > 0 {
+            let offset = fund_balance.min(new_bad_debt);
+            (new_bad_debt - offset, fund_balance - offset)
+        } else {
+            (new_bad_debt, fund_balance)
+        };
+
+        crate::borrow::set_total_bad_debt(env, &debt_asset, final_bad_debt);
+        crate::borrow::set_insurance_fund_balance(env, &debt_asset, final_fund);
+    }
 
     // ── 10. Update global total debt ───────────────────────────────────────
     let current_total = get_total_debt(env);

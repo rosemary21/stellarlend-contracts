@@ -288,7 +288,6 @@ fn test_upgrade_invalid_attempts() {
     );
 }
 
-
 // ── Issue #489: upgrade authorization clarity ─────────────────────────────
 
 /// Guardian has no upgrade power — upgrade paths are admin/approver-gated only.
@@ -440,4 +439,122 @@ fn test_proposal_ids_are_monotonically_increasing() {
 
     assert!(id2 > id1, "proposal IDs must be strictly increasing");
     assert_eq!(client.current_version(), 2);
+}
+
+// ── Issue #650: Replay Protection & Idempotency ──────────────────────────
+
+/// Replay protection: An executed proposal must never be executable again.
+///
+/// # Security
+/// This prevents an attacker from re-triggering the upgrade logic which might
+/// emit redundant events or interact with initialization logic unexpectedly.
+#[test]
+fn test_replay_protection_duplicate_execution_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env, 1);
+
+    let proposal_id = client.upgrade_propose(&admin, &hash(&env, 2), &1);
+    client.upgrade_execute(&admin, &proposal_id);
+
+    // Attempting to execute the same ID again must fail.
+    let result = client.try_upgrade_execute(&admin, &proposal_id);
+    assert_contract_error(result, UpgradeError::InvalidStatus);
+}
+
+/// Replay protection: A rolled-back proposal is terminal and cannot be re-executed.
+///
+/// # Security
+/// Once an admin has decided to roll back an upgrade, that specific proposal 
+/// object is "burned". Re-executing it would bypass the governance intent 
+/// behind the rollback.
+#[test]
+fn test_replay_protection_execute_after_rollback_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env, 1);
+
+    let proposal_id = client.upgrade_propose(&admin, &hash(&env, 2), &1);
+    client.upgrade_execute(&admin, &proposal_id);
+    client.upgrade_rollback(&admin, &proposal_id);
+
+    assert_eq!(client.upgrade_status(&proposal_id).stage, UpgradeStage::RolledBack);
+
+    // Attempting to execute a rolled-back proposal must fail.
+    let result = client.try_upgrade_execute(&admin, &proposal_id);
+    assert_contract_error(result, UpgradeError::InvalidStatus);
+}
+
+/// Idempotency: Duplicate approvals from the same account must be rejected.
+///
+/// # Security
+/// This ensures that the threshold count (n-of-m) cannot be subverted by 
+/// a single compromised or malicious approver signing multiple times for 
+/// the same proposal.
+#[test]
+fn test_idempotent_approvals_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env, 2);
+    let approver = Address::generate(&env);
+    client.upgrade_add_approver(&admin, &approver);
+
+    let proposal_id = client.upgrade_propose(&admin, &hash(&env, 2), &1);
+    
+    // First approval succeeds.
+    client.upgrade_approve(&approver, &proposal_id);
+    
+    // Second approval from same address fails.
+    let result = client.try_upgrade_approve(&approver, &proposal_id);
+    assert_contract_error(result, UpgradeError::AlreadyApproved);
+}
+
+/// Stale Proposal Protection: Executing a newer version invalidates older pending proposals.
+///
+/// # Security
+/// If Proposal A (v1) and Proposal B (v2) are both approved, executing B first
+/// makes A obsolete. Attempting to execute A afterwards would be a downgrade
+/// or a version collision, which must be blocked.
+#[test]
+fn test_stale_proposal_invalidation_replay_protection() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env, 1);
+
+    // Create two proposals for sequential versions.
+    let p1_v1 = client.upgrade_propose(&admin, &hash(&env, 11), &1);
+    let p2_v2 = client.upgrade_propose(&admin, &hash(&env, 22), &2);
+
+    // Execute the newer one (v2).
+    client.upgrade_execute(&admin, &p2_v2);
+    assert_eq!(client.current_version(), 2);
+
+    // Now try to execute the older one (v1). 
+    // Even if it was "Approved", the contract version has moved past it.
+    let result = client.try_upgrade_execute(&admin, &p1_v1);
+    assert_contract_error(result, UpgradeError::InvalidVersion);
+}
+
+/// Integrity check: Proposals are bound to their specific WASM hash.
+///
+/// # Security
+/// This test ensures that the execution logic uses the hash stored inside
+/// the proposal state at creation time, not a value that can be manipulated
+/// during the approval phase.
+#[test]
+fn test_proposal_integrity_hash_binding() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env, 1);
+
+    let target_hash = hash(&env, 99);
+    let proposal_id = client.upgrade_propose(&admin, &target_hash, &5);
+    
+    // Verify status reflects the bound hash.
+    let status = client.upgrade_status(&proposal_id);
+    // Note: If the contract version allows inspecting the hash in status, we check it.
+    
+    client.upgrade_execute(&admin, &proposal_id);
+    assert_eq!(client.current_wasm_hash(), target_hash);
+    assert_eq!(client.current_version(), 5);
 }

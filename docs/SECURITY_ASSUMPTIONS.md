@@ -11,7 +11,9 @@ The protocol defines several critical trust boundaries where authorization and v
 1.  **User vs. Protocol**: All user-facing operations (`deposit`, `borrow`, `withdraw`, `repay`) require explicit authorization using Soroban's `require_auth()` mechanism. The protocol assumes the underlying Stellar network and Soroban runtime correctly enforce these signatures.
 2.  **Protocol vs. Oracle**: The protocol trusts designated Oracle contracts to provide price feeds. However, it implements safeguards:
     - **Price Validation**: Checks for stale or outlier prices.
-    - **Fallback Mechanisms**: Uses cached prices if the primary feed is unavailable.
+    - **Per-Asset Staleness Limits**: Each asset can have its own `max_staleness_seconds` override (set via `set_asset_max_staleness`). When set, it takes precedence over the global config. This allows tighter bounds for frequently-updated assets (e.g. stablecoins) and looser bounds for assets with slower oracle cadences.
+    - **Failure Mode**: If no fresh price is available (both primary and fallback are stale or missing), the operation is blocked — stale prices are never silently accepted.
+    - **Fallback Mechanisms**: Uses a fallback oracle feed if the primary feed is stale or missing. The fallback feed is also subject to the same per-asset staleness check.
 3.  **Protocol vs. Bridge**: Cross-chain operations depend on authorized bridge contracts. The protocol verifies that the caller is a registered bridge before processing cross-chain deposits or withdrawals.
 4.  **Admin vs. System**: The admin has significant power to adjust risk parameters and pause the system. This power is intended to be protected by multisig or governance processes.
 

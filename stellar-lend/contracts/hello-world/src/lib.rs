@@ -1,150 +1,16 @@
-#![allow(deprecated)]
-#![allow(unused_imports)]
-#![allow(dead_code)]
-#![allow(clippy::too_many_arguments)]
-
-use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, Address, Env, Map, Symbol, Vec,
-};
-use soroban_sdk::{contract, contractimpl, Address, Env, Map, Symbol, Vec};
+#![no_std]
+use soroban_sdk::{contract, contractimpl, Env};
 
 pub mod admin;
-pub mod amm;
-pub mod analytics;
-pub mod borrow;
-pub mod bridge;
-pub mod config;
-pub mod config_snapshot;
-pub mod cross_asset;
+pub mod user;
+pub mod pool;
+pub mod views;
 pub mod deposit;
-pub mod errors;
-pub mod events;
-pub mod flash_loan;
-pub mod governance;
-pub mod interest_rate;
-pub mod liquidate;
-pub mod multisig;
-pub mod oracle;
-pub mod recovery;
-pub mod reentrancy;
+pub mod borrow;
 pub mod repay;
-pub mod reserve;
-pub mod risk_management;
-pub mod risk_params;
-pub mod storage;
-pub mod types;
-pub mod vesting;
 pub mod withdraw;
+pub mod reserve;
 
-#[cfg(test)]
-mod test_reentrancy;
-#[cfg(test)]
-mod test_vesting;
-#[cfg(test)]
-mod tests;
-// Legacy test suite currently mismatches contract API and is excluded from CI compile.
-// #[cfg(test)]
-// mod tests;
-
-use crate::oracle::OracleConfig;
-use crate::risk_management::{RiskConfig, RiskManagementError};
-
-/// Helper function to require admin authorization
-fn require_admin(env: &Env, caller: &Address) -> Result<(), RiskManagementError> {
-    caller.require_auth();
-    let admin_key = DepositDataKey::Admin;
-    let admin = env
-        .storage()
-        .persistent()
-        .get::<DepositDataKey, Address>(&admin_key)
-        .ok_or(RiskManagementError::Unauthorized)?;
-
-    if caller != &admin {
-        return Err(RiskManagementError::Unauthorized);
-    }
-    Ok(())
-}
-
-use borrow::borrow_asset;
-use deposit::deposit_collateral;
-use repay::repay_debt;
-
-use risk_management::{
-    check_emergency_pause, initialize_risk_management, is_emergency_paused, is_operation_paused,
-    set_pause_switch, set_pause_switches,
-};
-
-use crate::config_snapshot::{get_config_snapshot, ConfigSnapshot};
-use crate::deposit::{DepositDataKey, ProtocolAnalytics};
-use risk_params::{
-    can_be_liquidated, get_liquidation_incentive_amount, get_max_liquidatable_amount,
-    initialize_risk_params, require_min_collateral_ratio, RiskParamsError,
-};
-use withdraw::withdraw_collateral;
-
-use crate::analytics::{
-    generate_protocol_report, generate_user_report, get_recent_activity, get_user_activity_feed,
-    AnalyticsError, ProtocolReport, UserReport,
-};
-
-use crate::config::{config_backup, config_get, config_restore, config_set, ConfigError};
-use crate::config_snapshot::{get_config_snapshot, ConfigSnapshot};
-use crate::cross_asset::{
-    get_asset_config_by_address, get_asset_list, get_total_borrow_for, get_total_supply_for,
-    get_user_asset_position, get_user_position_summary, initialize_asset, update_asset_config,
-    update_asset_price, AssetConfig, AssetKey, AssetPosition, CrossAssetError, UserPositionSummary,
-};
-use crate::deposit::{DepositDataKey, ProtocolAnalytics};
-use crate::flash_loan::{
-    configure_flash_loan, execute_flash_loan, repay_flash_loan, set_flash_loan_fee, FlashLoanConfig,
-};
-
-#[allow(unused_imports)]
-use bridge::{
-    bridge_deposit, bridge_withdraw, get_bridge_config, list_bridges, register_bridge,
-    set_bridge_fee, BridgeConfig, BridgeError,
-};
-
-#[allow(unused_imports)]
-use crate::interest_rate::{
-    initialize_interest_rate_config, update_interest_rate_config, InterestRateConfig,
-    InterestRateError,
-};
-use crate::liquidate::liquidate;
-use crate::oracle::OracleConfig;
-use crate::risk_management::{
-    check_emergency_pause, initialize_risk_management, is_emergency_paused, is_operation_paused,
-    set_pause_switch, set_pause_switches, RiskConfig, RiskManagementError,
-};
-use crate::risk_params::{
-    can_be_liquidated, get_liquidation_incentive_amount, get_max_liquidatable_amount,
-    initialize_risk_params, require_min_collateral_ratio, RiskParamsError,
-};
-use crate::storage::GuardianConfig;
-use crate::types::{
-    GovernanceConfig, MultisigConfig, Proposal, ProposalOutcome, ProposalType, RecoveryRequest,
-    VoteInfo, VoteType,
-};
-
-/// Helper function to require admin authorization
-fn require_admin(env: &Env, caller: &Address) -> Result<(), RiskManagementError> {
-    caller.require_auth();
-    let admin_key = DepositDataKey::Admin;
-    let admin = env
-        .storage()
-        .persistent()
-        .get::<DepositDataKey, Address>(&admin_key)
-        .ok_or(RiskManagementError::Unauthorized)?;
-
-    if caller != &admin {
-        return Err(RiskManagementError::Unauthorized);
-    }
-    Ok(())
-}
-
-pub mod reentrancy;
-
-/// The StellarLend core contract.
 #[contract]
 pub struct HelloContract;
 
@@ -612,10 +478,7 @@ impl HelloContract {
     ///
     /// # Returns
     /// `(reserve_balance, reserve_factor_bps, treasury_address)`
-    pub fn get_reserve_stats(
-        env: Env,
-        asset: Option<Address>,
-    ) -> (i128, i128, Option<Address>) {
+    pub fn get_reserve_stats(env: Env, asset: Option<Address>) -> (i128, i128, Option<Address>) {
         crate::reserve::get_reserve_stats(&env, asset)
     }
 
@@ -657,9 +520,7 @@ impl HelloContract {
         }
 
         reserve_balance -= amount;
-        env.storage()
-            .persistent()
-            .set(&balance_key, &new_balance);
+        env.storage().persistent().set(&balance_key, &new_balance);
 
         // INTERACTIONS: transfer tokens to the requested destination
         // In test builds `to` is only referenced inside this cfg block; the

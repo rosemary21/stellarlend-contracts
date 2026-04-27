@@ -382,8 +382,12 @@ impl UpgradeManager {
             panic_with_error!(&env, UpgradeError::InvalidStatus);
         }
 
-        let current_hash = Self::current_wasm_hash(env.clone());
         let current_version = Self::current_version(env.clone());
+        if proposal.new_version <= current_version {
+            panic_with_error!(&env, UpgradeError::InvalidVersion);
+        }
+
+        let current_hash = Self::current_wasm_hash(env.clone());
         proposal.prev_wasm_hash = Some(current_hash.clone());
         proposal.prev_version = Some(current_version);
         proposal.stage = UpgradeStage::Executed;

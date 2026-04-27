@@ -72,25 +72,6 @@ pub fn ms_set_admins(
     Ok(())
 }
 
-/// Set the multisig approval threshold (admin only).
-pub fn set_ms_threshold(env: &Env, caller: Address, threshold: u32) -> Result<(), GovernanceError> {
-    // Authorization enforced via admin list check below.
-    let config = get_multisig_config(env).ok_or(GovernanceError::NotInitialized)?;
-    if !config.admins.contains(&caller) {
-        return Err(GovernanceError::Unauthorized);
-    }
-
-    if threshold == 0 || threshold > config.admins.len() as u32 {
-        return Err(GovernanceError::InvalidMultisigConfig);
-    }
-
-    let mut new_config = config;
-    new_config.threshold = threshold;
-
-    env.storage()
-        .instance()
-        .set(&GovernanceDataKey::MultisigConfig, &new_config);
-    Ok(())
 }
 
 /// Creates a proposal to update the minimum collateral ratio.

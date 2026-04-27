@@ -14,8 +14,8 @@ exclude = [
 ]
 
 [workspace.dependencies]
-soroban-sdk = "25.3.0"
-soroban-token-sdk = { version = "25.3.0" }
+soroban-sdk = "=25.3.0"
+soroban-token-sdk = { version = "=25.3.0" }
 
 [profile.release]
 opt-level = "z"
